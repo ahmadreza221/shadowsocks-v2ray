@@ -9,7 +9,7 @@ set -euo pipefail
 DOMAIN="${1:-}"
 EMAIL="${2:-}"
 QUOTA_GB="${3:-25}"
-BASE_PORT=7000
+BASE_PORT=443  # Changed from 7000 to 443
 CONFIG_DIR="/etc/shadowsocks-libev/config.d"
 IPTABLES_RULES_V4="/etc/iptables/rules.v4"
 IPTABLES_RULES_V6="/etc/iptables/rules.v6"
@@ -93,9 +93,24 @@ validate_domain() {
     
     log "Validating domain: $DOMAIN"
     
-    # Test if domain resolves
-    if ! nslookup "$DOMAIN" >/dev/null 2>&1; then
-        error "Domain $DOMAIN does not resolve"
+    # Test if domain resolves to both IPv4 and IPv6
+    local ipv4_resolved=false
+    local ipv6_resolved=false
+    
+    # Test IPv4 resolution
+    if nslookup "$DOMAIN" 2>/dev/null | grep -q "Address:"; then
+        ipv4_resolved=true
+        log "Domain resolves to IPv4"
+    fi
+    
+    # Test IPv6 resolution
+    if nslookup "$DOMAIN" 2>/dev/null | grep -q "AAAA"; then
+        ipv6_resolved=true
+        log "Domain resolves to IPv6"
+    fi
+    
+    if [[ "$ipv4_resolved" == "false" && "$ipv6_resolved" == "false" ]]; then
+        error "Domain $DOMAIN does not resolve to any IP address"
     fi
     
     # Test TLS connectivity
@@ -106,7 +121,7 @@ validate_domain() {
     fi
 }
 
-# Find next available port
+# Find next available port starting from 443
 find_next_port() {
     local port=$BASE_PORT
     while [[ $port -lt 9000 ]]; do
@@ -126,6 +141,21 @@ check_ipv6() {
     else
         echo "false"
     fi
+}
+
+# Get domain IP addresses
+get_domain_ips() {
+    local domain=$1
+    local ipv4_ip=""
+    local ipv6_ip=""
+    
+    # Get IPv4 address
+    ipv4_ip=$(nslookup "$domain" 2>/dev/null | grep "Address:" | tail -1 | awk '{print $2}')
+    
+    # Get IPv6 address
+    ipv6_ip=$(nslookup "$domain" 2>/dev/null | grep "AAAA" | awk '{print $2}')
+    
+    echo "$ipv4_ip:$ipv6_ip"
 }
 
 # Create user configuration
@@ -225,8 +255,25 @@ generate_connection_info() {
     
     log "Generating connection information"
     
-    # Create connection string
-    local connection_string="ss://$(echo -n "aes-256-gcm:$password@$DOMAIN:$port" | base64 -w 0)#$EMAIL"
+    # Get domain IP addresses
+    local domain_ips=$(get_domain_ips "$DOMAIN")
+    local ipv4_ip=$(echo "$domain_ips" | cut -d: -f1)
+    local ipv6_ip=$(echo "$domain_ips" | cut -d: -f2)
+    
+    # Create connection strings for both IPv4 and IPv6
+    local connection_string_ipv4=""
+    local connection_string_ipv6=""
+    
+    if [[ -n "$ipv4_ip" ]]; then
+        connection_string_ipv4="ss://$(echo -n "aes-256-gcm:$password@$ipv4_ip:$port" | base64 -w 0)#$EMAIL (IPv4)"
+    fi
+    
+    if [[ -n "$ipv6_ip" ]]; then
+        connection_string_ipv6="ss://$(echo -n "aes-256-gcm:$password@[$ipv6_ip]:$port" | base64 -w 0)#$EMAIL (IPv6)"
+    fi
+    
+    # Domain-based connection string (works with both IPv4 and IPv6)
+    local connection_string_domain="ss://$(echo -n "aes-256-gcm:$password@$DOMAIN:$port" | base64 -w 0)#$EMAIL (Domain)"
     
     echo
     echo "=========================================="
@@ -238,21 +285,42 @@ generate_connection_info() {
     echo "Quota: ${QUOTA_GB}GB"
     echo "Method: aes-256-gcm"
     echo "Plugin: v2ray-plugin"
+    if [[ -n "$ipv4_ip" ]]; then
+        echo "IPv4: $ipv4_ip"
+    fi
+    if [[ -n "$ipv6_ip" ]]; then
+        echo "IPv6: $ipv6_ip"
+    fi
     echo "=========================================="
     echo
     
-    # Generate QR code
+    # Generate QR code for domain-based connection
     if command -v qrencode >/dev/null 2>&1; then
-        echo "QR Code:"
-        echo "$connection_string" | qrencode -t ansiutf8
+        echo "QR Code (Domain-based - Recommended):"
+        echo "$connection_string_domain" | qrencode -t ansiutf8
         echo
     else
         warn "qrencode not found - QR code not generated"
     fi
     
-    echo "Connection String:"
-    echo "$connection_string"
+    echo "Connection Strings:"
+    echo "=========================================="
+    echo "Domain-based (Recommended - works with both IPv4/IPv6):"
+    echo "$connection_string_domain"
     echo
+    
+    if [[ -n "$connection_string_ipv4" ]]; then
+        echo "IPv4-only:"
+        echo "$connection_string_ipv4"
+        echo
+    fi
+    
+    if [[ -n "$connection_string_ipv6" ]]; then
+        echo "IPv6-only:"
+        echo "$connection_string_ipv6"
+        echo
+    fi
+    
     echo "Configuration file: $CONFIG_DIR/$port.json"
     echo
     echo "To remove this user, run: ./remove-user.sh $port"

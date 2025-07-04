@@ -12,6 +12,8 @@ A comprehensive Shadowsocks-libev management system with traffic quotas, IPv6 su
 - **User Management**: Add, remove, and list users with simple commands
 - **Quota Management**: Manual and automated quota resets
 - **Monitoring**: Built-in quota usage monitoring
+- **Port 443 Support**: Uses port 443 by default for better compatibility
+- **Dual IPv4/IPv6**: Automatic detection and support for both protocols
 
 ## Prerequisites
 
@@ -46,7 +48,7 @@ The installation script (`install.sh`) automatically:
 - Installs required packages: `shadowsocks-libev`, `v2ray-plugin`, `iptables-persistent`, `qrencode`
 - Configures iptables-persistent for rule persistence across reboots
 - Installs systemd service template for multi-instance support
-- Configures UFW firewall
+- Configures UFW firewall (opens ports 80, 443, and SSH)
 - Creates configuration directory structure
 - Checks nftables compatibility
 
@@ -75,12 +77,32 @@ sudo ./add-user.sh mydomain.com admin@company.com 100
 
 **What happens**:
 1. Validates domain and tests TLS connectivity
-2. Finds next available port (7000-9000 range)
-3. Creates per-port JSON configuration file
-4. Sets up iptables quota rules (IPv4 + IPv6)
-5. Adds UFW firewall rule
-6. Starts systemd service using template
-7. Generates QR code and connection string
+2. Checks both IPv4 and IPv6 resolution
+3. Finds next available port (443-9000 range)
+4. Creates per-port JSON configuration file
+5. Sets up iptables quota rules (IPv4 + IPv6)
+6. Adds UFW firewall rule
+7. Starts systemd service using template
+8. Generates QR code and multiple connection strings (Domain, IPv4, IPv6)
+
+### Connection Strings
+
+The system generates three types of connection strings:
+
+1. **Domain-based** (Recommended): Works with both IPv4 and IPv6
+   ```
+   ss://YWVzLTI1Ni1nY206...@example.com:443#user@example.com
+   ```
+
+2. **IPv4-only**: Direct IPv4 connection
+   ```
+   ss://YWVzLTI1Ni1nY206...@192.168.1.1:443#user@example.com (IPv4)
+   ```
+
+3. **IPv6-only**: Direct IPv6 connection
+   ```
+   ss://YWVzLTI1Ni1nY206...@[2001:db8::1]:443#user@example.com (IPv6)
+   ```
 
 ### Removing Users
 
@@ -91,7 +113,7 @@ sudo ./remove-user.sh --list
 
 **Examples**:
 ```bash
-sudo ./remove-user.sh 7001
+sudo ./remove-user.sh 443
 sudo ./remove-user.sh --list
 ```
 
@@ -123,10 +145,35 @@ sudo ./reset-quota.sh --remove-cron
 
 **Examples**:
 ```bash
-sudo ./reset-quota.sh 7001 50
+sudo ./reset-quota.sh 443 50
 sudo ./reset-quota.sh --all 25
 sudo ./reset-quota.sh --setup-cron 25
 ```
+
+## IPv4 and IPv6 Support
+
+### Automatic Detection
+
+The system automatically detects and configures both IPv4 and IPv6:
+
+1. **Domain Resolution**: Checks for both A (IPv4) and AAAA (IPv6) records
+2. **System Support**: Detects if the system has IPv6 addresses
+3. **Dual Rules**: Creates iptables rules for both protocols
+4. **Connection Strings**: Generates separate connection strings for each protocol
+
+### IPv6 Configuration
+
+If IPv6 is available:
+- Creates separate ip6tables quota rules
+- Generates IPv6-specific connection strings
+- Persists IPv6 rules in `/etc/iptables/rules.v6`
+
+### Recommended Setup
+
+For best compatibility:
+- **Domain**: Point to both IPv4 and IPv6 addresses
+- **SSL Certificate**: Valid for both protocols
+- **Firewall**: Allow both IPv4 and IPv6 traffic
 
 ## Traffic Quota Mechanics
 
@@ -163,8 +210,8 @@ For total traffic metering, both INPUT and OUTPUT rules are configured.
 
 The system uses a systemd template unit (`shadowsocks-libev@.service`) where:
 
-- `%i` expands to the port number (e.g., `7001`)
-- Each user gets their own service instance: `shadowsocks-libev@7001`
+- `%i` expands to the port number (e.g., `443`)
+- Each user gets their own service instance: `shadowsocks-libev@443`
 - Configuration files are stored in `/etc/shadowsocks-libev/config.d/<port>.json`
 
 ### Service Template
@@ -182,14 +229,14 @@ Restart=on-failure
 ### Service Management
 
 ```bash
-# Start service for port 7001
-systemctl enable --now shadowsocks-libev@7001
+# Start service for port 443
+systemctl enable --now shadowsocks-libev@443
 
 # Check status
-systemctl status shadowsocks-libev@7001
+systemctl status shadowsocks-libev@443
 
 # View logs
-journalctl -u shadowsocks-libev@7001 -f
+journalctl -u shadowsocks-libev@443 -f
 ```
 
 ## Multi-Port Configuration Strategy
