@@ -211,7 +211,8 @@ EOF
     chmod 600 "$config_file"
     chown root:root "$config_file"
     
-    echo "$password"
+    # Return both password and plugin_opts
+    echo "$password|$plugin_opts"
 }
 
 # Setup iptables quota rules
@@ -276,6 +277,7 @@ start_service() {
 generate_connection_info() {
     local port=$1
     local password=$2
+    local plugin_opts=$3
     
     log "Generating connection information"
     
@@ -361,11 +363,14 @@ main() {
     local port=$(find_next_port)
     log "Selected port: $port"
     
-    local password=$(create_user_config $port)
+    local user_info
+    user_info=$(create_user_config $port)
+    local password=$(echo "$user_info" | cut -d'|' -f1)
+    local plugin_opts=$(echo "$user_info" | cut -d'|' -f2)
     setup_iptables_quota $port
     setup_ufw $port
     start_service $port
-    generate_connection_info $port $password
+    generate_connection_info $port $password "$plugin_opts"
     
     log "User creation completed successfully"
 }
