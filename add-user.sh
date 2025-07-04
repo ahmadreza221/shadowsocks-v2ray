@@ -211,7 +211,10 @@ EOF
     chmod 600 "$config_file"
     chown root:root "$config_file"
     
-    # Return both password and plugin_opts
+    # Always return both password and plugin_opts, even if plugin_opts is empty
+    if [[ -z "$plugin_opts" ]]; then
+        plugin_opts="tls;host=$DOMAIN"
+    fi
     echo "$password|$plugin_opts"
 }
 
