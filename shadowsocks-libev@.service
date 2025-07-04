@@ -1,0 +1,24 @@
+[Unit]
+Description=Shadowsocks-libev instance on port %i
+Documentation=man:ss-server(1)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+LimitNOFILE=32768
+ExecStart=/usr/bin/ss-server -c /etc/shadowsocks-libev/config.d/%i.json
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5s
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/etc/shadowsocks-libev/config.d
+
+[Install]
+WantedBy=multi-user.target 
