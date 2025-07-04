@@ -178,17 +178,17 @@ create_user_config() {
     if [[ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]] && [[ -f "/etc/letsencrypt/live/$DOMAIN/privkey.pem" ]]; then
         ssl_cert_path="/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
         ssl_key_path="/etc/letsencrypt/live/$DOMAIN/privkey.pem"
-        plugin_opts="server;tls;host=$DOMAIN;cert=$ssl_cert_path;key=$ssl_key_path"
-        log "Using Let's Encrypt SSL certificate"
+        plugin_opts="server;tls;host=$DOMAIN;cert=$ssl_cert_path;key=$ssl_key_path;loglevel=none"
+        log "Using Let's Encrypt SSL certificate with secure configuration"
     # Check for acme.sh certificate
     elif [[ -f "/root/.acme.sh/$DOMAIN/fullchain.crt" ]] && [[ -f "/root/.acme.sh/$DOMAIN/$DOMAIN.key" ]]; then
         ssl_cert_path="/root/.acme.sh/$DOMAIN/fullchain.crt"
         ssl_key_path="/root/.acme.sh/$DOMAIN/$DOMAIN.key"
-        plugin_opts="server;tls;host=$DOMAIN;cert=$ssl_cert_path;key=$ssl_key_path"
-        log "Using acme.sh SSL certificate"
+        plugin_opts="server;tls;host=$DOMAIN;cert=$ssl_cert_path;key=$ssl_key_path;loglevel=none"
+        log "Using acme.sh SSL certificate with secure configuration"
     else
         # No SSL certificate found, use TLS without cert (fallback)
-        plugin_opts="server;tls;host=$DOMAIN"
+        plugin_opts="server;tls;host=$DOMAIN;loglevel=none"
         warn "No SSL certificate found. Using TLS without certificate (may not work with all clients)"
         warn "To install SSL certificate, run: sudo certbot certonly --standalone -d $DOMAIN"
     fi
@@ -200,7 +200,7 @@ create_user_config() {
     "server": "0.0.0.0",
     "server_port": $port,
     "password": "$password",
-    "method": "aes-256-gcm",
+    "method": "chacha20-poly1305",
     "plugin": "v2ray-plugin",
     "plugin_opts": "$plugin_opts",
     "mode": "tcp_and_udp"
@@ -289,15 +289,15 @@ generate_connection_info() {
     local connection_string_ipv6=""
     
     if [[ -n "$ipv4_ip" ]]; then
-        connection_string_ipv4="ss://$(echo -n "aes-256-gcm:$password@$ipv4_ip:$port" | base64 -w 0)#$EMAIL (IPv4)"
+        connection_string_ipv4="ss://$(echo -n "chacha20-poly1305:$password@$ipv4_ip:$port" | base64 -w 0)#$EMAIL (IPv4)"
     fi
     
     if [[ -n "$ipv6_ip" ]]; then
-        connection_string_ipv6="ss://$(echo -n "aes-256-gcm:$password@[$ipv6_ip]:$port" | base64 -w 0)#$EMAIL (IPv6)"
+        connection_string_ipv6="ss://$(echo -n "chacha20-poly1305:$password@[$ipv6_ip]:$port" | base64 -w 0)#$EMAIL (IPv6)"
     fi
     
     # Domain-based connection string (works with both IPv4 and IPv6)
-    local connection_string_domain="ss://$(echo -n "aes-256-gcm:$password@$DOMAIN:$port" | base64 -w 0)#$EMAIL (Domain)"
+    local connection_string_domain="ss://$(echo -n "chacha20-poly1305:$password@$DOMAIN:$port" | base64 -w 0)#$EMAIL (Domain)"
     
     echo
     echo "=========================================="
@@ -307,7 +307,7 @@ generate_connection_info() {
     echo "Port: $port"
     echo "Email: $EMAIL"
     echo "Quota: ${QUOTA_GB}GB"
-    echo "Method: aes-256-gcm"
+    echo "Method: chacha20-poly1305"
     echo "Plugin: v2ray-plugin"
     if [[ -n "$ipv4_ip" ]]; then
         echo "IPv4: $ipv4_ip"
