@@ -284,21 +284,23 @@ generate_connection_info() {
     local ipv4_ip=$(echo "$domain_ips" | cut -d: -f1)
     local ipv6_ip=$(echo "$domain_ips" | cut -d: -f2)
     
-    # Create connection strings for both IPv4 and IPv6
+    # Create connection strings for both IPv4 and IPv6 (legacy, for reference)
     local connection_string_ipv4=""
     local connection_string_ipv6=""
-    
     if [[ -n "$ipv4_ip" ]]; then
         connection_string_ipv4="ss://$(echo -n "chacha20-poly1305:$password@$ipv4_ip:$port" | base64 -w 0)#$EMAIL (IPv4)"
     fi
-    
     if [[ -n "$ipv6_ip" ]]; then
         connection_string_ipv6="ss://$(echo -n "chacha20-poly1305:$password@[$ipv6_ip]:$port" | base64 -w 0)#$EMAIL (IPv6)"
     fi
-    
-    # Domain-based connection string (works with both IPv4 and IPv6)
+    # Domain-based connection string (legacy)
     local connection_string_domain="ss://$(echo -n "chacha20-poly1305:$password@$DOMAIN:$port" | base64 -w 0)#$EMAIL (Domain)"
-    
+
+    # Plugin string for QR/clients
+    local plugin_string="v2ray-plugin;$(echo $plugin_opts | sed 's/;/;/g')"
+    local plugin_urlencoded=$(echo "$plugin_string" | sed 's/;/%3B/g; s/:/%3A/g; s/=/%3D/g; s/,/%2C/g; s/ /%20/g')
+    local ss_uri_full="ss://$(echo -n "chacha20-poly1305:$password@$DOMAIN:$port" | base64 -w 0)?plugin=$plugin_urlencoded#$EMAIL"
+
     echo
     echo "=========================================="
     echo "User Configuration Created Successfully"
@@ -309,6 +311,7 @@ generate_connection_info() {
     echo "Quota: ${QUOTA_GB}GB"
     echo "Method: chacha20-poly1305"
     echo "Plugin: v2ray-plugin"
+    echo "Plugin Options: $plugin_opts"
     if [[ -n "$ipv4_ip" ]]; then
         echo "IPv4: $ipv4_ip"
     fi
@@ -317,34 +320,31 @@ generate_connection_info() {
     fi
     echo "=========================================="
     echo
-    
-    # Generate QR code for domain-based connection
+    # Generate QR code for full ss:// URI (with plugin)
     if command -v qrencode >/dev/null 2>&1; then
-        echo "QR Code (Domain-based - Recommended):"
-        echo "$connection_string_domain" | qrencode -t ansiutf8
+        echo "QR Code (for mobile clients, with plugin):"
+        echo "$ss_uri_full" | qrencode -t ansiutf8
         echo
     else
         warn "qrencode not found - QR code not generated"
     fi
-    
-    echo "Connection Strings:"
-    echo "=========================================="
-    echo "Domain-based (Recommended - works with both IPv4/IPv6):"
+    echo "Connection String (for copy-paste in mobile/desktop clients):"
+    echo "$ss_uri_full"
+    echo
+    echo "(Legacy connection strings for reference)"
+    echo "Domain-based (base64, legacy):"
     echo "$connection_string_domain"
     echo
-    
     if [[ -n "$connection_string_ipv4" ]]; then
-        echo "IPv4-only:"
+        echo "IPv4-only (base64, legacy):"
         echo "$connection_string_ipv4"
         echo
     fi
-    
     if [[ -n "$connection_string_ipv6" ]]; then
-        echo "IPv6-only:"
+        echo "IPv6-only (base64, legacy):"
         echo "$connection_string_ipv6"
         echo
     fi
-    
     echo "Configuration file: $CONFIG_DIR/$port.json"
     echo
     echo "To remove this user, run: ./remove-user.sh $port"
