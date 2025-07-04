@@ -68,7 +68,7 @@ install_v2ray_plugin() {
     log "Installing v2ray-plugin manually..."
 
     # Download latest release
-    wget -O /tmp/v2ray-plugin-linux-amd64.tar.gz https://github.com/shadowsocks/v2ray-plugin/releases/latest/download/v2ray-plugin-linux-amd64.tar.gz
+    wget -O /tmp/v2ray-plugin-linux-amd64.tar.gz https://github.com/teddysun/v2ray-plugin/releases/latest/download/v2ray-plugin-linux-amd64.tar.gz
 
     # Extract
     tar -xzf /tmp/v2ray-plugin-linux-amd64.tar.gz -C /tmp
