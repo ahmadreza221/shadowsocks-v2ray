@@ -67,19 +67,50 @@ install_debian_packages() {
 install_v2ray_plugin() {
     log "Installing v2ray-plugin manually..."
 
-    # Download latest release
-    wget -O /tmp/v2ray-plugin-linux-amd64.tar.gz https://github.com/teddysun/v2ray-plugin/releases/latest/download/v2ray-plugin-linux-amd64.tar.gz
+    # Get the latest version from GitHub API
+    local latest_version=$(curl -s https://api.github.com/repos/teddysun/v2ray-plugin/releases/latest | grep -o '"tag_name": "v[^"]*"' | cut -d'"' -f4)
+    
+    if [[ -z "$latest_version" ]]; then
+        warn "Could not get latest version, using fallback method"
+        # Fallback: try to download directly
+        wget -O /tmp/v2ray-plugin-linux-amd64.tar.gz https://github.com/teddysun/v2ray-plugin/releases/download/v5.7.0/v2ray-plugin-linux-amd64-v5.7.0.tar.gz
+    else
+        log "Latest version: $latest_version"
+        # Download with specific version
+        wget -O /tmp/v2ray-plugin-linux-amd64.tar.gz "https://github.com/teddysun/v2ray-plugin/releases/download/${latest_version}/v2ray-plugin-linux-amd64-${latest_version}.tar.gz"
+    fi
+
+    # Check if download was successful
+    if [[ ! -f /tmp/v2ray-plugin-linux-amd64.tar.gz ]] || [[ ! -s /tmp/v2ray-plugin-linux-amd64.tar.gz ]]; then
+        error "Failed to download v2ray-plugin"
+    fi
 
     # Extract
     tar -xzf /tmp/v2ray-plugin-linux-amd64.tar.gz -C /tmp
 
+    # Find the binary (it might have different names)
+    local binary_name=""
+    if [[ -f /tmp/v2ray-plugin ]]; then
+        binary_name="v2ray-plugin"
+    elif [[ -f /tmp/v2ray-plugin_linux_amd64 ]]; then
+        binary_name="v2ray-plugin_linux_amd64"
+    else
+        # List files in /tmp to see what we have
+        log "Files in /tmp:"
+        ls -la /tmp/v2ray*
+        error "Could not find v2ray-plugin binary"
+    fi
+
     # Move binary
-    mv /tmp/v2ray-plugin_linux_amd64 /usr/bin/v2ray-plugin
+    mv "/tmp/$binary_name" /usr/bin/v2ray-plugin
 
     # Make executable
     chmod +x /usr/bin/v2ray-plugin
 
-    log "v2ray-plugin installed"
+    # Clean up
+    rm -f /tmp/v2ray-plugin-linux-amd64.tar.gz
+
+    log "v2ray-plugin installed successfully"
 }
 
 # Install packages on CentOS/RHEL
@@ -256,4 +287,4 @@ main() {
 }
 
 # Run installation
-main 
+main
