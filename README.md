@@ -31,12 +31,17 @@ A comprehensive Shadowsocks-libev management system with traffic quotas, IPv6 su
    sudo ./install.sh
    ```
 
-2. **Add your first user**:
+2. **Install SSL certificate** (recommended):
+   ```bash
+   sudo ./install-ssl.sh example.com
+   ```
+
+3. **Add your first user**:
    ```bash
    sudo ./add-user.sh example.com user@example.com 25
    ```
 
-3. **Setup monthly quota reset**:
+4. **Setup monthly quota reset**:
    ```bash
    sudo ./reset-quota.sh --setup-cron 25
    ```
@@ -60,6 +65,63 @@ The installation script (`install.sh`) automatically:
 - `qrencode`: Generate QR codes for client configuration
 - `ufw`: Uncomplicated firewall for port management
 - `curl`, `net-tools`, `openssl`: System utilities
+- `certbot`: SSL certificate management
+
+## SSL Certificate Management
+
+### Automatic SSL Installation
+
+The system includes an automated SSL certificate installer:
+
+```bash
+sudo ./install-ssl.sh <domain>
+```
+
+**Example**:
+```bash
+sudo ./install-ssl.sh example.com
+```
+
+**What happens**:
+1. Installs certbot if not already installed
+2. Stops services using ports 80/443 temporarily
+3. Installs SSL certificate using Let's Encrypt
+4. Sets up auto-renewal via cron
+5. Restarts all services
+
+### Manual SSL Installation
+
+If you prefer manual installation:
+
+```bash
+# Install certbot
+sudo apt update
+sudo apt install -y certbot
+
+# Install certificate (stop services first)
+sudo systemctl stop shadowsocks-libev@443
+sudo certbot certonly --standalone -d example.com
+
+# Restart service
+sudo systemctl start shadowsocks-libev@443
+```
+
+### SSL Certificate Locations
+
+The system automatically detects SSL certificates in:
+- **Let's Encrypt**: `/etc/letsencrypt/live/<domain>/`
+- **acme.sh**: `/root/.acme.sh/<domain>/`
+
+### Certificate Auto-Renewal
+
+Certificates are automatically renewed via cron:
+```bash
+# Check renewal status
+sudo certbot renew --dry-run
+
+# View renewal logs
+sudo journalctl -u certbot.timer
+```
 
 ## Usage
 

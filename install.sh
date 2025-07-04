@@ -58,7 +58,8 @@ install_debian_packages() {
         net-tools \
         ufw \
         openssl \
-        dnsutils
+        dnsutils \
+        certbot
 
     log "Package installation completed"
 }

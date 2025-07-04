@@ -169,6 +169,30 @@ create_user_config() {
     # Ensure config directory exists
     mkdir -p "$CONFIG_DIR"
     
+    # Check for SSL certificate
+    local ssl_cert_path=""
+    local ssl_key_path=""
+    local plugin_opts=""
+    
+    # Check for Let's Encrypt certificate
+    if [[ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]] && [[ -f "/etc/letsencrypt/live/$DOMAIN/privkey.pem" ]]; then
+        ssl_cert_path="/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
+        ssl_key_path="/etc/letsencrypt/live/$DOMAIN/privkey.pem"
+        plugin_opts="server;tls;host=$DOMAIN;cert=$ssl_cert_path;key=$ssl_key_path"
+        log "Using Let's Encrypt SSL certificate"
+    # Check for acme.sh certificate
+    elif [[ -f "/root/.acme.sh/$DOMAIN/fullchain.crt" ]] && [[ -f "/root/.acme.sh/$DOMAIN/$DOMAIN.key" ]]; then
+        ssl_cert_path="/root/.acme.sh/$DOMAIN/fullchain.crt"
+        ssl_key_path="/root/.acme.sh/$DOMAIN/$DOMAIN.key"
+        plugin_opts="server;tls;host=$DOMAIN;cert=$ssl_cert_path;key=$ssl_key_path"
+        log "Using acme.sh SSL certificate"
+    else
+        # No SSL certificate found, use TLS without cert (fallback)
+        plugin_opts="server;tls;host=$DOMAIN"
+        warn "No SSL certificate found. Using TLS without certificate (may not work with all clients)"
+        warn "To install SSL certificate, run: sudo certbot certonly --standalone -d $DOMAIN"
+    fi
+    
     # Create per-port JSON configuration
     # Note: Each user gets its own config file for easier audit and revert
     cat > "$config_file" << EOF
@@ -178,7 +202,7 @@ create_user_config() {
     "password": "$password",
     "method": "aes-256-gcm",
     "plugin": "v2ray-plugin",
-    "plugin_opts": "server;tls;host=$DOMAIN",
+    "plugin_opts": "$plugin_opts",
     "mode": "tcp_and_udp"
 }
 EOF
