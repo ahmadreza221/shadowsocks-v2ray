@@ -117,7 +117,7 @@ reset_all_quotas() {
     fi
     
     for port in $ports; do
-        if [[ "$port" =~ ^[0-9]+$ ]] && [[ $port -ge 7000 ]] && [[ $port -le 9000 ]]; then
+        if [[ "$port" =~ ^[0-9]+$ ]] && [[ $port -ge 1 ]] && [[ $port -le 65535 ]]; then
             reset_port_quota $port $quota_gb
         fi
     done
@@ -244,7 +244,7 @@ main() {
             ;;
         *)
             # Check if it's a port number
-            if [[ "$1" =~ ^[0-9]+$ ]] && [[ $1 -ge 7000 ]] && [[ $1 -le 9000 ]]; then
+            if [[ "$1" =~ ^[0-9]+$ ]] && [[ $1 -ge 1 ]] && [[ $1 -le 65535 ]]; then
                 reset_port_quota "$1" "${2:-25}"
             else
                 error "Invalid option or port number: $1"

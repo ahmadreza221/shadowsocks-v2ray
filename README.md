@@ -534,7 +534,7 @@ Edit `add-user.sh` to change the port range:
 
 ```bash
 BASE_PORT=7000  # Start port
-# Ports 7000-9000 are used
+# Ports 443-9000 are used (443 is default)
 ```
 
 ### Custom Systemd Settings

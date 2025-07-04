@@ -136,8 +136,8 @@ remove_user() {
     log "Starting removal process for port $port"
     
     # Validate port
-    if ! [[ "$port" =~ ^[0-9]+$ ]] || [[ $port -lt 7000 ]] || [[ $port -gt 9000 ]]; then
-        error "Invalid port number: $port. Must be between 7000-9000"
+    if ! [[ "$port" =~ ^[0-9]+$ ]] || [[ $port -lt 1 ]] || [[ $port -gt 65535 ]]; then
+        error "Invalid port number: $port. Must be between 1-65535"
     fi
     
     # Check if service exists
