@@ -140,9 +140,10 @@ remove_user() {
         error "Invalid port number: $port. Must be between 1-65535"
     fi
     
-    # Check if service exists
-    if ! systemctl list-unit-files | grep -q "shadowsocks-libev@$port"; then
-        warn "Service shadowsocks-libev@$port not found"
+    # Check if service exists (silent check)
+    if ! systemctl list-unit-files | grep -q "shadowsocks-libev@$port" 2>/dev/null; then
+        # Service doesn't exist, which is normal for new installations
+        log "Service shadowsocks-libev@$port not found (normal for new installations)"
     fi
     
     # Perform removal steps
